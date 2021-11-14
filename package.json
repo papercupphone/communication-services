@@ -1,6 +1,6 @@
 {
   "name": "@papercupphone/communication-services",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "WebRTC implementation for Paper Cup Phone",
   "keywords": [
     "WebRTC",

@@ -1,5 +1,5 @@
 import RTCService from "./RTCService"
-import {Data} from "./model/Data";
+import {Data} from "./model/Data"
 
 export class SignalService {
 
@@ -141,7 +141,7 @@ export class SignalService {
     private beforeUnload() {
         let self = this
         return async () => {
-            navigator.sendBeacon(self.apiUrl + "/leave", JSON.stringify({connectionId: self.connectionId}));
+            navigator.sendBeacon(self.apiUrl + "/leave", JSON.stringify({connectionId: self.connectionId}))
         }
     }
 }
