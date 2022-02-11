@@ -73,12 +73,11 @@ export class SignalService {
      * @private
      */
     private onSocketOpen(room: string) {
-        let self = this
         return async () => {
-            if (self.socket) {
-                self.socket.onmessage = self.onMessage()
+            if (this.socket) {
+                this.socket.onmessage = this.onMessage()
             }
-            await self.sendMessageOverWebSocket({action: "join", room: {name: room}})
+            await this.sendMessageOverWebSocket({action: "join", room: {name: room}})
         }
     }
 
@@ -87,7 +86,6 @@ export class SignalService {
      * @private
      */
     private onMessage() {
-        let self = this
         return async (event: any) => {
             let message: any
 
@@ -98,13 +96,13 @@ export class SignalService {
             }
 
             if (message && message.offer) {
-                await self.generatePC(message.sender, false)
-                await self.setDescription(message.offer, message.sender)
-                await self.answer(message.offer, message.sender)
+                await this.generatePC(message.sender, false)
+                await this.setDescription(message.offer, message.sender)
+                await this.answer(message.offer, message.sender)
             }
 
             if (message && message.answer) {
-                await self.setDescription(message.answer, message.sender)
+                await this.setDescription(message.answer, message.sender)
             }
 
             if (message && message.message) {
@@ -116,12 +114,12 @@ export class SignalService {
             }
 
             if (message && message.me) {
-                self.connectionId = message.me.id
-                await self.generatePCs(message)
+                this.connectionId = message.me.id
+                await this.generatePCs(message)
             }
 
             if (message && message.candidate) {
-                self.addIceCandidate(message)
+                this.addIceCandidate(message)
             }
         }
     }
@@ -144,9 +142,8 @@ export class SignalService {
      * @private
      */
     private beforeUnload() {
-        let self = this
         return async () => {
-            navigator.sendBeacon(self.apiUrl + "/leave", JSON.stringify({connectionId: self.connectionId}))
+            navigator.sendBeacon(this.apiUrl + "/leave", JSON.stringify({connectionId: this.connectionId}))
         }
     }
 
@@ -183,14 +180,13 @@ export class SignalService {
     }
 
     private onTrack(remoteSocketId: string) {
-        let self = this
         return async (e: RTCTrackEvent) => {
-            let remoteMediaStreamTracks = self.remoteMediaStreamTracksMap.get(remoteSocketId)
+            let remoteMediaStreamTracks = this.remoteMediaStreamTracksMap.get(remoteSocketId)
             if (remoteMediaStreamTracks && remoteMediaStreamTracks.length > 0) {
                 remoteMediaStreamTracks.push(e.track)
-                self.remoteMediaStreamTracksMap.set(remoteSocketId, remoteMediaStreamTracks)
+                this.remoteMediaStreamTracksMap.set(remoteSocketId, remoteMediaStreamTracks)
             } else {
-                self.remoteMediaStreamTracksMap.set(remoteSocketId, [e.track])
+                this.remoteMediaStreamTracksMap.set(remoteSocketId, [e.track])
             }
 
             if (remoteMediaStreamTracks && remoteMediaStreamTracks.length >= 2) {
@@ -198,9 +194,9 @@ export class SignalService {
                 for (let mediaStreamTrack of remoteMediaStreamTracks) {
                     mediaStream.addTrack(mediaStreamTrack)
                 }
-                self.remoteMediaStreamMap.set(remoteSocketId, mediaStream)
-                if (self.onMediaStream) {
-                    self.onMediaStream(self.remoteMediaStreamMap.get(remoteSocketId))
+                this.remoteMediaStreamMap.set(remoteSocketId, mediaStream)
+                if (this.onMediaStream) {
+                    this.onMediaStream(this.remoteMediaStreamMap.get(remoteSocketId))
                 }
             }
         }
@@ -214,33 +210,30 @@ export class SignalService {
     }
 
     private onDataChannel(sender: string) {
-        let self = this
         return async (event: RTCDataChannelEvent) => {
             console.log('Receive Channel Callback')
-            self.RCs.set(sender, event.channel)
-            let channel = self.RCs.get(sender)
+            this.RCs.set(sender, event.channel)
+            let channel = this.RCs.get(sender)
             if (channel) {
-                channel.onmessage = self.onReceiveMessageCallback(sender)
-                channel.onopen = self.onReceiveChannelStateChange(sender)
-                channel.onclose = self.onReceiveChannelStateChange(sender)
+                channel.onmessage = this.onReceiveMessageCallback(sender)
+                channel.onopen = this.onReceiveChannelStateChange(sender)
+                channel.onclose = this.onReceiveChannelStateChange(sender)
             }
         }
     }
 
     private onReceiveMessageCallback(socketId: string) {
-        let self = this
         return (event: MessageEvent) => {
             let data = event.data
-            if (self.peerListener) {
-                self.peerListener({data, socketId})
+            if (this.peerListener) {
+                this.peerListener({data, socketId})
             }
         }
     }
 
     private onSendChannelStateChange(remoteSocketId: string) {
-        let self = this
         return () => {
-            let dataChannel = self.DCs.get(remoteSocketId)
+            let dataChannel = this.DCs.get(remoteSocketId)
             if (dataChannel) {
                 const readyState = dataChannel.readyState
                 console.log('Send channel state is: ' + readyState)
@@ -249,33 +242,31 @@ export class SignalService {
     }
 
     private onReceiveChannelStateChange(remoteSocketId: string) {
-        let self = this
         return () => {
-            let peerConnection = self.PCs.get(remoteSocketId)
-            let dataChannel = self.DCs.get(remoteSocketId)
-            let remoteDataChannel = self.RCs.get(remoteSocketId)
+            let peerConnection = this.PCs.get(remoteSocketId)
+            let dataChannel = this.DCs.get(remoteSocketId)
+            let remoteDataChannel = this.RCs.get(remoteSocketId)
             if (dataChannel && dataChannel.readyState === 'closed') {
                 if (dataChannel) {
                     dataChannel.close()
                 }
-                self.DCs.delete(remoteSocketId)
+                this.DCs.delete(remoteSocketId)
                 if (remoteDataChannel) {
                     remoteDataChannel.close()
                 }
-                self.RCs.delete(remoteSocketId)
+                this.RCs.delete(remoteSocketId)
                 if (peerConnection) {
                     peerConnection.close()
                 }
-                self.PCs.delete(remoteSocketId)
+                this.PCs.delete(remoteSocketId)
             }
             console.log(`Receive channel state is: ${dataChannel?.readyState}`)
         }
     }
 
     private onIceCandidate(to: string) {
-        let self = this
         return async (rtcIceCandidate: RTCPeerConnectionIceEvent) => {
-            await self.sendMessageOverWebSocket({
+            await this.sendMessageOverWebSocket({
                 action: "message", message: {
                     candidate: rtcIceCandidate.candidate,
                     to
@@ -313,9 +304,8 @@ export class SignalService {
     }
 
     private setOfferDescription(to: string) {
-        let self = this
         return async (desc: RTCSessionDescriptionInit) => {
-            await self.sendMessageOverWebSocket({
+            await this.sendMessageOverWebSocket({
                 action: "message", message: {
                     offer: {
                         type: desc.type,
@@ -325,7 +315,7 @@ export class SignalService {
                 }
             })
 
-            let peerConnection = self.PCs.get(to)
+            let peerConnection = this.PCs.get(to)
             if (peerConnection) {
                 await peerConnection.setLocalDescription(desc)
             }
@@ -333,9 +323,8 @@ export class SignalService {
     }
 
     private setAnswerDescription(to: string) {
-        let self = this
         return async (desc: RTCSessionDescriptionInit) => {
-            await self.sendMessageOverWebSocket({
+            await this.sendMessageOverWebSocket({
                 action: "message", message: {
                     answer: {
                         type: desc.type,
@@ -344,7 +333,7 @@ export class SignalService {
                     to
                 }
             })
-            let peerConnection = self.PCs.get(to)
+            let peerConnection = this.PCs.get(to)
             if (peerConnection) {
                 await peerConnection.setLocalDescription(desc)
             }
@@ -374,13 +363,12 @@ export class SignalService {
     }
 
     public addIceCandidate(message: any) {
-        let self = this
         setTimeout(async () => {
-            let peerConnection = self.PCs.get(message.sender)
+            let peerConnection = this.PCs.get(message.sender)
             if (peerConnection) {
                 await peerConnection.addIceCandidate(message.candidate).then(
-                    self.onAddIceCandidateSuccess(),
-                    self.onAddIceCandidateError()
+                    this.onAddIceCandidateSuccess(),
+                    this.onAddIceCandidateError()
                 )
             }
         }, 250)
