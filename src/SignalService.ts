@@ -168,9 +168,11 @@ export class SignalService {
         rtcPeerConnection.onicecandidate = this.onIceCandidate(remoteSocketId)
         rtcPeerConnection.ontrack = this.onTrack(remoteSocketId)
 
-        this.localStream.getTracks().forEach((track: MediaStreamTrack) => {
-            rtcPeerConnection.addTrack(track)
-        })
+        if(this.localStream){
+            this.localStream.getTracks().forEach((track: MediaStreamTrack) => {
+                rtcPeerConnection.addTrack(track)
+            })
+        }
 
         this.createDataChannel(rtcPeerConnection, remoteSocketId)
 
