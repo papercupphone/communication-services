@@ -3,7 +3,6 @@ export class MediaService {
 
     public static getMediator(){
         let navigator: any = window.navigator
-
         if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
             return  navigator.mediaDevices
         } else if (navigator && navigator.getUserMedia) {

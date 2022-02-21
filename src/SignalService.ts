@@ -97,6 +97,7 @@ export class SignalService {
 
             if (message && message.offer) {
                 await this.generatePC(message.sender)
+                await this.setDescription(message.offer, message.sender)
                 await this.answer(message.offer, message.sender)
             }
 
@@ -159,12 +160,10 @@ export class SignalService {
     }
 
     public async generatePC(remoteSocketId: string) {
-        let rtcPeerConnection;
-
         if (!this.PCs.get(remoteSocketId)) {
             const configuration = { 'iceServers': this.token.iceServers }
             let RTCPeerConnection = window.RTCPeerConnection
-            rtcPeerConnection = new RTCPeerConnection(configuration)
+            let rtcPeerConnection = new RTCPeerConnection(configuration)
 
             this.PCs.set(remoteSocketId, rtcPeerConnection)
             rtcPeerConnection.onicecandidate = this.onIceCandidate(remoteSocketId)
@@ -177,12 +176,9 @@ export class SignalService {
                 })
             }
 
-        } else {
-            rtcPeerConnection = this.PCs.get(remoteSocketId)
-        }
-
-        if (!this.DCs.get(remoteSocketId)) {
-            this.createDataChannel(rtcPeerConnection, remoteSocketId)
+            if (!this.DCs.get(remoteSocketId)) {
+                this.createDataChannel(rtcPeerConnection, remoteSocketId)
+            }
         }
     }
 
@@ -210,7 +206,7 @@ export class SignalService {
     }
 
     private createDataChannel(rtcPeerConnection: RTCPeerConnection, remoteSocketId: string) {
-        let dataChannel = rtcPeerConnection.createDataChannel('textMessageChannel')
+        let dataChannel = rtcPeerConnection.createDataChannel(`textMessageChannel${remoteSocketId}`)
         dataChannel.onopen = this.onSendChannelStateChange(remoteSocketId)
         dataChannel.onclose = this.onSendChannelStateChange(remoteSocketId)
         this.DCs.set(remoteSocketId, dataChannel)
@@ -219,15 +215,12 @@ export class SignalService {
     private onNegotiationNeeded(rtcPeerConnection: RTCPeerConnection, remoteSocketId: string) {
         return async () => {
             console.log("negotiationNeeded")
-            console.log(rtcPeerConnection)
-            console.log(remoteSocketId)
             await this.offer(rtcPeerConnection, remoteSocketId)
         }
     }
 
     private onDataChannel(sender: string) {
         return async (event: RTCDataChannelEvent) => {
-            console.log('Receive Channel Callback')
             this.RCs.set(sender, event.channel)
             let channel = this.RCs.get(sender)
             if (channel) {
@@ -305,6 +298,7 @@ export class SignalService {
 
     public async answer(offer: RTCSessionDescription, to: string) {
         let rtcPeerConnection = this.PCs.get(to)
+
         if (rtcPeerConnection) {
             await rtcPeerConnection.setRemoteDescription(offer)
             await rtcPeerConnection.createAnswer()
@@ -366,9 +360,8 @@ export class SignalService {
 
     public async setDescription(sdp: RTCSessionDescription, sender: string) {
         let peerConnection: RTCPeerConnection = this.PCs.get(sender)
+
         if (peerConnection) {
-            console.log(peerConnection.iceGatheringState)
-            console.log('Set remote description 123')
             const rtcSessionDescription = new RTCSessionDescription(sdp)
             await peerConnection.setRemoteDescription(rtcSessionDescription)
             peerConnection.ondatachannel = this.onDataChannel(sender)
