@@ -1,4 +1,4 @@
-import {Data} from "./model/Data"
+import { Data } from "./model/Data"
 
 export class SignalService {
 
@@ -77,7 +77,7 @@ export class SignalService {
             if (this.socket) {
                 this.socket.onmessage = this.onMessage()
             }
-            await this.sendMessageOverWebSocket({action: "join", room: {name: room}})
+            await this.sendMessageOverWebSocket({ action: "join", room: { name: room } })
         }
     }
 
@@ -96,8 +96,7 @@ export class SignalService {
             }
 
             if (message && message.offer) {
-                await this.generatePC(message.sender, false)
-                await this.setDescription(message.offer, message.sender)
+                await this.generatePC(message.sender)
                 await this.answer(message.offer, message.sender)
             }
 
@@ -143,7 +142,7 @@ export class SignalService {
      */
     private beforeUnload() {
         return async () => {
-            navigator.sendBeacon(this.apiUrl + "/leave", JSON.stringify({connectionId: this.connectionId}))
+            navigator.sendBeacon(this.apiUrl + "/leave", JSON.stringify({ connectionId: this.connectionId }))
         }
     }
 
@@ -159,25 +158,31 @@ export class SignalService {
         })
     }
 
-    public async generatePC(remoteSocketId: string, isInitiator: boolean) {
-        const configuration = {'iceServers': this.token.iceServers}
-        let RTCPeerConnection = window.RTCPeerConnection
-        let rtcPeerConnection = new RTCPeerConnection(configuration)
+    public async generatePC(remoteSocketId: string) {
+        let rtcPeerConnection;
 
-        this.PCs.set(remoteSocketId, rtcPeerConnection)
-        rtcPeerConnection.onicecandidate = this.onIceCandidate(remoteSocketId)
-        rtcPeerConnection.ontrack = this.onTrack(remoteSocketId)
+        if (!this.PCs.get(remoteSocketId)) {
+            const configuration = { 'iceServers': this.token.iceServers }
+            let RTCPeerConnection = window.RTCPeerConnection
+            rtcPeerConnection = new RTCPeerConnection(configuration)
 
-        if(this.localStream){
-            this.localStream.getTracks().forEach((track: MediaStreamTrack) => {
-                rtcPeerConnection.addTrack(track)
-            })
+            this.PCs.set(remoteSocketId, rtcPeerConnection)
+            rtcPeerConnection.onicecandidate = this.onIceCandidate(remoteSocketId)
+            rtcPeerConnection.ontrack = this.onTrack(remoteSocketId)
+            rtcPeerConnection.onnegotiationneeded = this.onNegotiationNeeded(rtcPeerConnection, remoteSocketId)
+
+            if (this.localStream) {
+                this.localStream.getTracks().forEach((track: MediaStreamTrack) => {
+                    rtcPeerConnection.addTrack(track)
+                })
+            }
+
+        } else {
+            rtcPeerConnection = this.PCs.get(remoteSocketId)
         }
 
-        this.createDataChannel(rtcPeerConnection, remoteSocketId)
-
-        if (isInitiator) {
-            await this.offer(remoteSocketId)
+        if (!this.DCs.get(remoteSocketId)) {
+            this.createDataChannel(rtcPeerConnection, remoteSocketId)
         }
     }
 
@@ -211,6 +216,15 @@ export class SignalService {
         this.DCs.set(remoteSocketId, dataChannel)
     }
 
+    private onNegotiationNeeded(rtcPeerConnection: RTCPeerConnection, remoteSocketId: string) {
+        return async () => {
+            console.log("negotiationNeeded")
+            console.log(rtcPeerConnection)
+            console.log(remoteSocketId)
+            await this.offer(rtcPeerConnection, remoteSocketId)
+        }
+    }
+
     private onDataChannel(sender: string) {
         return async (event: RTCDataChannelEvent) => {
             console.log('Receive Channel Callback')
@@ -228,7 +242,7 @@ export class SignalService {
         return (event: MessageEvent) => {
             let data = event.data
             if (this.peerListener) {
-                this.peerListener({data, socketId})
+                this.peerListener({ data, socketId })
             }
         }
     }
@@ -277,14 +291,15 @@ export class SignalService {
         }
     }
 
-    private async offer(to: string) {
-        let rtcPeerConnection = this.PCs.get(to)
+    private async offer(rtcPeerConnection: RTCPeerConnection, to: string) {
         if (rtcPeerConnection) {
             await rtcPeerConnection.createOffer()
                 .then(
-                    this.setOfferDescription(to)
+                    this.setOfferDescription(rtcPeerConnection, to)
                     , this.onCreateSessionDescriptionError()
-                )
+                ).catch((reason: any) => {
+                    console.log(reason)
+                })
         }
     }
 
@@ -299,13 +314,21 @@ export class SignalService {
         }
     }
 
+    public async addTracksToPCs() {
+        this.PCs.forEach((value: RTCPeerConnection) => {
+            this.localStream.getTracks().forEach((track: MediaStreamTrack) => {
+                value.addTrack(track)
+            })
+        })
+    }
+
     private onCreateSessionDescriptionError() {
         return (error: Error) => {
             console.log('Failed to create session description: ' + error.toString())
         }
     }
 
-    private setOfferDescription(to: string) {
+    private setOfferDescription(rtcPeerConnection: RTCPeerConnection, remoteSocketId: string) {
         return async (desc: RTCSessionDescriptionInit) => {
             await this.sendMessageOverWebSocket({
                 action: "message", message: {
@@ -313,13 +336,12 @@ export class SignalService {
                         type: desc.type,
                         sdp: desc.sdp
                     },
-                    to
+                    to: remoteSocketId
                 }
             })
 
-            let peerConnection = this.PCs.get(to)
-            if (peerConnection) {
-                await peerConnection.setLocalDescription(desc)
+            if (rtcPeerConnection) {
+                await rtcPeerConnection.setLocalDescription(desc)
             }
         }
     }
@@ -343,9 +365,10 @@ export class SignalService {
     }
 
     public async setDescription(sdp: RTCSessionDescription, sender: string) {
-        let peerConnection = this.PCs.get(sender)
-        if (peerConnection && !peerConnection.currentRemoteDescription) {
-            console.log('Set remote description')
+        let peerConnection: RTCPeerConnection = this.PCs.get(sender)
+        if (peerConnection) {
+            console.log(peerConnection.iceGatheringState)
+            console.log('Set remote description 123')
             const rtcSessionDescription = new RTCSessionDescription(sdp)
             await peerConnection.setRemoteDescription(rtcSessionDescription)
             peerConnection.ondatachannel = this.onDataChannel(sender)
@@ -381,7 +404,7 @@ export class SignalService {
         this.token = message.token
         for (let peer of message.peers) {
             if (message.me && message.me.id !== peer) {
-                await this.generatePC(peer, true)
+                await this.generatePC(peer)
             }
         }
     }
