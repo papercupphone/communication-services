@@ -169,6 +169,7 @@ export class SignalService {
             rtcPeerConnection.onicecandidate = this.onIceCandidate(remoteSocketId)
             rtcPeerConnection.ontrack = this.onTrack(remoteSocketId)
             rtcPeerConnection.onnegotiationneeded = this.onNegotiationNeeded(rtcPeerConnection, remoteSocketId)
+            rtcPeerConnection.onconnectionstatechange = this.onConnectionStateChange(rtcPeerConnection)
 
             if (this.localStream) {
                 this.localStream.getTracks().forEach((track: MediaStreamTrack) => {
@@ -178,6 +179,15 @@ export class SignalService {
 
             if (!this.DCs.get(remoteSocketId)) {
                 this.createDataChannel(rtcPeerConnection, remoteSocketId)
+            }
+        }
+    }
+
+    private onConnectionStateChange(rtcPeerConnection:RTCPeerConnection) {
+        return async () => {
+            const connectionStatus = rtcPeerConnection.connectionState;
+            if (["disconnected", "failed", "closed"].includes(connectionStatus)) {
+                console.log("disconnected");
             }
         }
     }
