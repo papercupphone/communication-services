@@ -97,7 +97,7 @@ export class SignalService {
 
             if (message && message.offer) {
                 await this.generatePC(message.sender)
-                await this.setDescription(message.offer, message.sender)
+                await this.setOnDataChannel(message.sender)
                 await this.answer(message.offer, message.sender)
             }
 
@@ -355,6 +355,14 @@ export class SignalService {
             if (peerConnection) {
                 await peerConnection.setLocalDescription(desc)
             }
+        }
+    }
+
+    public async setOnDataChannel(sender: string) {
+        let peerConnection: RTCPeerConnection = this.PCs.get(sender)
+
+        if (peerConnection) {
+            peerConnection.ondatachannel = this.onDataChannel(sender)
         }
     }
 
