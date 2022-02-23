@@ -11,6 +11,7 @@ export class SignalService {
     private remoteMediaStreamMap: Map<string, MediaStream> = new Map()
     private token: any
     private peerListener?: Function
+    private onDisconnected?: Function
     private onMediaStream?: Function
     private connectionId: string = ""
     private apiUrl: string = ""
@@ -169,7 +170,7 @@ export class SignalService {
             rtcPeerConnection.onicecandidate = this.onIceCandidate(remoteSocketId)
             rtcPeerConnection.ontrack = this.onTrack(remoteSocketId)
             rtcPeerConnection.onnegotiationneeded = this.onNegotiationNeeded(rtcPeerConnection, remoteSocketId)
-            rtcPeerConnection.onconnectionstatechange = this.onConnectionStateChange(rtcPeerConnection)
+            rtcPeerConnection.onconnectionstatechange = this.onConnectionStateChange(rtcPeerConnection,remoteSocketId)
 
             if (this.localStream) {
                 this.localStream.getTracks().forEach((track: MediaStreamTrack) => {
@@ -183,11 +184,11 @@ export class SignalService {
         }
     }
 
-    private onConnectionStateChange(rtcPeerConnection:RTCPeerConnection) {
+    private onConnectionStateChange(rtcPeerConnection: RTCPeerConnection, sender: string) {
         return async () => {
             const connectionStatus = rtcPeerConnection.connectionState;
             if (["disconnected", "failed", "closed"].includes(connectionStatus)) {
-                console.log("disconnected");
+                this.onDisconnected(sender)
             }
         }
     }
