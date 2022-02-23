@@ -45,6 +45,10 @@ export class SignalService {
         this.peerListener = peerListener
     }
 
+    public setOnDisconnected(onDisconnected: Function) {
+        this.onDisconnected = onDisconnected
+    }
+
     public setLocalStream(localStream: MediaStream) {
         this.localStream = localStream
     }
