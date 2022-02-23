@@ -41,6 +41,9 @@ export class SignalService {
     setPeerListener(peerListener) {
         this.peerListener = peerListener;
     }
+    setOnDisconnected(onDisconnected) {
+        this.onDisconnected = onDisconnected;
+    }
     setLocalStream(localStream) {
         this.localStream = localStream;
     }
@@ -153,7 +156,7 @@ export class SignalService {
                 rtcPeerConnection.onicecandidate = this.onIceCandidate(remoteSocketId);
                 rtcPeerConnection.ontrack = this.onTrack(remoteSocketId);
                 rtcPeerConnection.onnegotiationneeded = this.onNegotiationNeeded(rtcPeerConnection, remoteSocketId);
-                rtcPeerConnection.onconnectionstatechange = this.onConnectionStateChange(rtcPeerConnection);
+                rtcPeerConnection.onconnectionstatechange = this.onConnectionStateChange(rtcPeerConnection, remoteSocketId);
                 if (this.localStream) {
                     this.localStream.getTracks().forEach((track) => {
                         rtcPeerConnection.addTrack(track);
@@ -165,11 +168,11 @@ export class SignalService {
             }
         });
     }
-    onConnectionStateChange(rtcPeerConnection) {
+    onConnectionStateChange(rtcPeerConnection, sender) {
         return () => __awaiter(this, void 0, void 0, function* () {
             const connectionStatus = rtcPeerConnection.connectionState;
             if (["disconnected", "failed", "closed"].includes(connectionStatus)) {
-                console.log("disconnected");
+                this.onDisconnected(sender);
             }
         });
     }

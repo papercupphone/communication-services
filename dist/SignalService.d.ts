@@ -9,6 +9,7 @@ export declare class SignalService {
     private remoteMediaStreamMap;
     private token;
     private peerListener?;
+    private onDisconnected?;
     private onMediaStream?;
     private connectionId;
     private apiUrl;
@@ -28,6 +29,7 @@ export declare class SignalService {
      */
     connect(room: string, socketUrl: string, apiUrl: string): void;
     setPeerListener(peerListener: Function): void;
+    setOnDisconnected(onDisconnected: Function): void;
     setLocalStream(localStream: MediaStream): void;
     setOnMediaStream(onMediaStream: Function): void;
     /**
