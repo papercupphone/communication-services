@@ -214,7 +214,7 @@ export class SignalService {
                 }
                 this.remoteMediaStreamMap.set(remoteSocketId, mediaStream)
                 if (this.onMediaStream) {
-                    this.onMediaStream(this.remoteMediaStreamMap.get(remoteSocketId))
+                    this.onMediaStream(this.remoteMediaStreamMap.get(remoteSocketId),remoteSocketId)
                 }
             }
         }
