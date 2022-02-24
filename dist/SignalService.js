@@ -67,6 +67,111 @@ export class SignalService {
         return this.connectionId;
     }
     /**
+    * sendMessageOverWebRTC
+    * @param msg string msg text
+    */
+    sendMessageOverWebRTC(msg) {
+        this.DCs.forEach(value => {
+            if (value.readyState === 'open') {
+                value.send(JSON.stringify({ msg }));
+            }
+        });
+    }
+    sendInternalMessageOverWebSocket(data) {
+        this.DCs.forEach(value => {
+            if (value.readyState === 'open') {
+                value.send(JSON.stringify(data));
+            }
+        });
+    }
+    generatePC(remoteSocketId) {
+        return __awaiter(this, void 0, void 0, function* () {
+            if (!this.PCs.get(remoteSocketId)) {
+                const configuration = { 'iceServers': this.token.iceServers };
+                let RTCPeerConnection = window.RTCPeerConnection;
+                let rtcPeerConnection = new RTCPeerConnection(configuration);
+                this.PCs.set(remoteSocketId, rtcPeerConnection);
+                rtcPeerConnection.onicecandidate = this.onIceCandidate(remoteSocketId);
+                rtcPeerConnection.ontrack = this.onTrack(remoteSocketId);
+                rtcPeerConnection.onnegotiationneeded = this.onNegotiationNeeded(rtcPeerConnection, remoteSocketId);
+                rtcPeerConnection.onconnectionstatechange = this.onConnectionStateChange(rtcPeerConnection, remoteSocketId);
+                if (this.localStream) {
+                    this.localStream.getTracks().forEach((track) => {
+                        rtcPeerConnection.addTrack(track);
+                    });
+                }
+                if (!this.DCs.get(remoteSocketId)) {
+                    this.createDataChannel(rtcPeerConnection, remoteSocketId);
+                }
+            }
+        });
+    }
+    answer(offer, to) {
+        return __awaiter(this, void 0, void 0, function* () {
+            let rtcPeerConnection = this.PCs.get(to);
+            if (rtcPeerConnection) {
+                yield rtcPeerConnection.setRemoteDescription(offer);
+                yield rtcPeerConnection.createAnswer()
+                    .then(this.setAnswerDescription(to), this.onCreateSessionDescriptionError());
+            }
+        });
+    }
+    addTracksToPCs() {
+        return __awaiter(this, void 0, void 0, function* () {
+            this.PCs.forEach((value) => {
+                this.localStream.getTracks().forEach((track) => {
+                    value.addTrack(track);
+                });
+            });
+        });
+    }
+    removeTracksFromPCs() {
+        return __awaiter(this, void 0, void 0, function* () {
+            this.sendInternalMessageOverWebSocket({
+                state: "closed",
+                sender: this.connectionId
+            });
+            this.localStream.getVideoTracks().forEach((track) => {
+                track.stop();
+            });
+            this.localStream.getAudioTracks().forEach((track) => {
+                track.stop();
+            });
+            this.PCs.forEach((value, socketId) => {
+                value.getSenders().forEach((sender) => {
+                    value.removeTrack(sender);
+                });
+            });
+            this.localStream = null;
+        });
+    }
+    setDescription(sdp, sender) {
+        return __awaiter(this, void 0, void 0, function* () {
+            let peerConnection = this.PCs.get(sender);
+            if (peerConnection) {
+                const rtcSessionDescription = new RTCSessionDescription(sdp);
+                yield peerConnection.setRemoteDescription(rtcSessionDescription);
+                peerConnection.ondatachannel = this.onDataChannel(sender);
+            }
+        });
+    }
+    addIceCandidate(message) {
+        setTimeout(() => __awaiter(this, void 0, void 0, function* () {
+            let peerConnection = this.PCs.get(message.sender);
+            if (peerConnection) {
+                yield peerConnection.addIceCandidate(message.candidate).then(this.onAddIceCandidateSuccess(), this.onAddIceCandidateError());
+            }
+        }), 250);
+    }
+    setOnDataChannel(sender) {
+        return __awaiter(this, void 0, void 0, function* () {
+            let peerConnection = this.PCs.get(sender);
+            if (peerConnection) {
+                peerConnection.ondatachannel = this.onDataChannel(sender);
+            }
+        });
+    }
+    /**
      * It make us send joining request to room
      * @param room
      * @private
@@ -135,39 +240,6 @@ export class SignalService {
             navigator.sendBeacon(this.apiUrl + "/leave", JSON.stringify({ connectionId: this.connectionId }));
         });
     }
-    /**
-     * sendMessageOverWebRTC
-     * @param msg string msg text
-     */
-    sendMessageOverWebRTC(msg) {
-        this.DCs.forEach(value => {
-            if (value.readyState === 'open') {
-                value.send(msg);
-            }
-        });
-    }
-    generatePC(remoteSocketId) {
-        return __awaiter(this, void 0, void 0, function* () {
-            if (!this.PCs.get(remoteSocketId)) {
-                const configuration = { 'iceServers': this.token.iceServers };
-                let RTCPeerConnection = window.RTCPeerConnection;
-                let rtcPeerConnection = new RTCPeerConnection(configuration);
-                this.PCs.set(remoteSocketId, rtcPeerConnection);
-                rtcPeerConnection.onicecandidate = this.onIceCandidate(remoteSocketId);
-                rtcPeerConnection.ontrack = this.onTrack(remoteSocketId);
-                rtcPeerConnection.onnegotiationneeded = this.onNegotiationNeeded(rtcPeerConnection, remoteSocketId);
-                rtcPeerConnection.onconnectionstatechange = this.onConnectionStateChange(rtcPeerConnection, remoteSocketId);
-                if (this.localStream) {
-                    this.localStream.getTracks().forEach((track) => {
-                        rtcPeerConnection.addTrack(track);
-                    });
-                }
-                if (!this.DCs.get(remoteSocketId)) {
-                    this.createDataChannel(rtcPeerConnection, remoteSocketId);
-                }
-            }
-        });
-    }
     onConnectionStateChange(rtcPeerConnection, sender) {
         return () => __awaiter(this, void 0, void 0, function* () {
             const connectionStatus = rtcPeerConnection.connectionState;
@@ -178,6 +250,8 @@ export class SignalService {
     }
     onTrack(remoteSocketId) {
         return (e) => __awaiter(this, void 0, void 0, function* () {
+            console.log("asdsad");
+            e.track.onended = this.onEnded(remoteSocketId);
             let remoteMediaStreamTracks = this.remoteMediaStreamTracksMap.get(remoteSocketId);
             if (remoteMediaStreamTracks && remoteMediaStreamTracks.length > 0) {
                 remoteMediaStreamTracks.push(e.track);
@@ -197,6 +271,12 @@ export class SignalService {
                 }
             }
         });
+    }
+    onEnded(sender) {
+        return () => {
+            console.log("onEnded");
+            this.onDisconnected(sender);
+        };
     }
     createDataChannel(rtcPeerConnection, remoteSocketId) {
         let dataChannel = rtcPeerConnection.createDataChannel(`textMessageChannel${remoteSocketId}`);
@@ -223,9 +303,14 @@ export class SignalService {
     }
     onReceiveMessageCallback(socketId) {
         return (event) => {
-            let data = event.data;
-            if (this.peerListener) {
-                this.peerListener({ data, socketId });
+            let data = JSON.parse(event.data);
+            if (data.msg && this.peerListener) {
+                this.peerListener({ data: data.msg, socketId });
+            }
+            if (data.state && data.state === "closed") {
+                this.onDisconnected(data.sender);
+                this.remoteMediaStreamMap.delete(data.sender);
+                this.remoteMediaStreamTracksMap.delete(data.sender);
             }
         };
     }
@@ -280,25 +365,6 @@ export class SignalService {
             }
         });
     }
-    answer(offer, to) {
-        return __awaiter(this, void 0, void 0, function* () {
-            let rtcPeerConnection = this.PCs.get(to);
-            if (rtcPeerConnection) {
-                yield rtcPeerConnection.setRemoteDescription(offer);
-                yield rtcPeerConnection.createAnswer()
-                    .then(this.setAnswerDescription(to), this.onCreateSessionDescriptionError());
-            }
-        });
-    }
-    addTracksToPCs() {
-        return __awaiter(this, void 0, void 0, function* () {
-            this.PCs.forEach((value) => {
-                this.localStream.getTracks().forEach((track) => {
-                    value.addTrack(track);
-                });
-            });
-        });
-    }
     onCreateSessionDescriptionError() {
         return (error) => {
             console.log('Failed to create session description: ' + error.toString());
@@ -337,24 +403,6 @@ export class SignalService {
             }
         });
     }
-    setOnDataChannel(sender) {
-        return __awaiter(this, void 0, void 0, function* () {
-            let peerConnection = this.PCs.get(sender);
-            if (peerConnection) {
-                peerConnection.ondatachannel = this.onDataChannel(sender);
-            }
-        });
-    }
-    setDescription(sdp, sender) {
-        return __awaiter(this, void 0, void 0, function* () {
-            let peerConnection = this.PCs.get(sender);
-            if (peerConnection) {
-                const rtcSessionDescription = new RTCSessionDescription(sdp);
-                yield peerConnection.setRemoteDescription(rtcSessionDescription);
-                peerConnection.ondatachannel = this.onDataChannel(sender);
-            }
-        });
-    }
     onAddIceCandidateSuccess() {
         return () => {
             console.log('AddIceCandidate success.');
@@ -364,14 +412,6 @@ export class SignalService {
         return (error) => {
             console.log(`Failed to add Ice Candidate: ${error.toString()}`);
         };
-    }
-    addIceCandidate(message) {
-        setTimeout(() => __awaiter(this, void 0, void 0, function* () {
-            let peerConnection = this.PCs.get(message.sender);
-            if (peerConnection) {
-                yield peerConnection.addIceCandidate(message.candidate).then(this.onAddIceCandidateSuccess(), this.onAddIceCandidateError());
-            }
-        }), 250);
     }
     generatePCs(message) {
         return __awaiter(this, void 0, void 0, function* () {

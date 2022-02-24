@@ -42,6 +42,19 @@ export declare class SignalService {
      */
     getConnectionId(): string;
     /**
+    * sendMessageOverWebRTC
+    * @param msg string msg text
+    */
+    sendMessageOverWebRTC(msg: string): void;
+    sendInternalMessageOverWebSocket(data: any): void;
+    generatePC(remoteSocketId: string): Promise<void>;
+    answer(offer: RTCSessionDescription, to: string): Promise<void>;
+    addTracksToPCs(): Promise<void>;
+    removeTracksFromPCs(): Promise<void>;
+    setDescription(sdp: RTCSessionDescription, sender: string): Promise<void>;
+    addIceCandidate(message: any): void;
+    setOnDataChannel(sender: string): Promise<void>;
+    /**
      * It make us send joining request to room
      * @param room
      * @private
@@ -60,14 +73,9 @@ export declare class SignalService {
      * @private
      */
     private beforeUnload;
-    /**
-     * sendMessageOverWebRTC
-     * @param msg string msg text
-     */
-    sendMessageOverWebRTC(msg: string): void;
-    generatePC(remoteSocketId: string): Promise<void>;
     private onConnectionStateChange;
     private onTrack;
+    private onEnded;
     private createDataChannel;
     private onNegotiationNeeded;
     private onDataChannel;
@@ -76,15 +84,10 @@ export declare class SignalService {
     private onReceiveChannelStateChange;
     private onIceCandidate;
     private offer;
-    answer(offer: RTCSessionDescription, to: string): Promise<void>;
-    addTracksToPCs(): Promise<void>;
     private onCreateSessionDescriptionError;
     private setOfferDescription;
     private setAnswerDescription;
-    setOnDataChannel(sender: string): Promise<void>;
-    setDescription(sdp: RTCSessionDescription, sender: string): Promise<void>;
     private onAddIceCandidateSuccess;
     private onAddIceCandidateError;
-    addIceCandidate(message: any): void;
     generatePCs(message: any): Promise<void>;
 }

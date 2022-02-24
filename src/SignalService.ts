@@ -73,6 +73,118 @@ export class SignalService {
     }
 
     /**
+    * sendMessageOverWebRTC
+    * @param msg string msg text
+    */
+    public sendMessageOverWebRTC(msg: string) {
+        this.DCs.forEach(value => {
+            if (value.readyState === 'open') {
+                value.send(JSON.stringify({ msg }))
+            }
+        })
+    }
+
+    public sendInternalMessageOverWebSocket(data) {
+        this.DCs.forEach(value => {
+            if (value.readyState === 'open') {
+                value.send(JSON.stringify(data))
+            }
+        })
+    }
+
+    public async generatePC(remoteSocketId: string) {
+        if (!this.PCs.get(remoteSocketId)) {
+            const configuration = { 'iceServers': this.token.iceServers }
+            let RTCPeerConnection = window.RTCPeerConnection
+            let rtcPeerConnection = new RTCPeerConnection(configuration)
+
+            this.PCs.set(remoteSocketId, rtcPeerConnection)
+            rtcPeerConnection.onicecandidate = this.onIceCandidate(remoteSocketId)
+            rtcPeerConnection.ontrack = this.onTrack(remoteSocketId)
+            rtcPeerConnection.onnegotiationneeded = this.onNegotiationNeeded(rtcPeerConnection, remoteSocketId)
+            rtcPeerConnection.onconnectionstatechange = this.onConnectionStateChange(rtcPeerConnection, remoteSocketId)
+
+            if (this.localStream) {
+                this.localStream.getTracks().forEach((track: MediaStreamTrack) => {
+                    rtcPeerConnection.addTrack(track)
+                })
+            }
+
+            if (!this.DCs.get(remoteSocketId)) {
+                this.createDataChannel(rtcPeerConnection, remoteSocketId)
+            }
+        }
+    }
+
+
+    public async answer(offer: RTCSessionDescription, to: string) {
+        let rtcPeerConnection = this.PCs.get(to)
+
+        if (rtcPeerConnection) {
+            await rtcPeerConnection.setRemoteDescription(offer)
+            await rtcPeerConnection.createAnswer()
+                .then(
+                    this.setAnswerDescription(to)
+                    , this.onCreateSessionDescriptionError())
+        }
+    }
+
+    public async addTracksToPCs() {
+        this.PCs.forEach((value: RTCPeerConnection) => {
+            this.localStream.getTracks().forEach((track: MediaStreamTrack) => {
+                value.addTrack(track)
+            })
+        })
+    }
+
+    public async removeTracksFromPCs() {
+        this.sendInternalMessageOverWebSocket({
+            state: "closed",
+            sender: this.connectionId
+        })
+        this.localStream.getVideoTracks().forEach((track: MediaStreamTrack) => {
+            track.stop()
+        })
+        this.localStream.getAudioTracks().forEach((track: MediaStreamTrack) => {
+            track.stop()
+        })
+        this.PCs.forEach((value: RTCPeerConnection, socketId: string) => {
+            value.getSenders().forEach((sender: RTCRtpSender) => {
+                value.removeTrack(sender)
+            }) 
+        })
+        this.localStream = null
+    }
+
+    public async setDescription(sdp: RTCSessionDescription, sender: string) {
+        let peerConnection: RTCPeerConnection = this.PCs.get(sender)
+        if (peerConnection) {
+            const rtcSessionDescription = new RTCSessionDescription(sdp)
+            await peerConnection.setRemoteDescription(rtcSessionDescription)
+            peerConnection.ondatachannel = this.onDataChannel(sender)
+        }
+    }
+
+    public addIceCandidate(message: any) {
+        setTimeout(async () => {
+            let peerConnection = this.PCs.get(message.sender)
+            if (peerConnection) {
+                await peerConnection.addIceCandidate(message.candidate).then(
+                    this.onAddIceCandidateSuccess(),
+                    this.onAddIceCandidateError()
+                )
+            }
+        }, 250)
+    }
+
+    public async setOnDataChannel(sender: string) {
+        let peerConnection: RTCPeerConnection = this.PCs.get(sender)
+        if (peerConnection) {
+            peerConnection.ondatachannel = this.onDataChannel(sender)
+        }
+    }
+
+    /**
      * It make us send joining request to room
      * @param room
      * @private
@@ -93,36 +205,29 @@ export class SignalService {
     private onMessage() {
         return async (event: any) => {
             let message: any
-
             try {
                 message = JSON.parse(event.data)
             } catch (e) {
                 console.log(e)
             }
-
             if (message && message.offer) {
                 await this.generatePC(message.sender)
                 await this.setOnDataChannel(message.sender)
                 await this.answer(message.offer, message.sender)
             }
-
             if (message && message.answer) {
                 await this.setDescription(message.answer, message.sender)
             }
-
             if (message && message.message) {
                 console.log(event.data)
             }
-
             if (message && message.joined) {
                 console.log("User joined room with id " + message.joined.id)
             }
-
             if (message && message.me) {
                 this.connectionId = message.me.id
                 await this.generatePCs(message)
             }
-
             if (message && message.candidate) {
                 this.addIceCandidate(message)
             }
@@ -152,42 +257,6 @@ export class SignalService {
         }
     }
 
-    /**
-     * sendMessageOverWebRTC
-     * @param msg string msg text
-     */
-    public sendMessageOverWebRTC(msg: string) {
-        this.DCs.forEach(value => {
-            if (value.readyState === 'open') {
-                value.send(msg)
-            }
-        })
-    }
-
-    public async generatePC(remoteSocketId: string) {
-        if (!this.PCs.get(remoteSocketId)) {
-            const configuration = { 'iceServers': this.token.iceServers }
-            let RTCPeerConnection = window.RTCPeerConnection
-            let rtcPeerConnection = new RTCPeerConnection(configuration)
-
-            this.PCs.set(remoteSocketId, rtcPeerConnection)
-            rtcPeerConnection.onicecandidate = this.onIceCandidate(remoteSocketId)
-            rtcPeerConnection.ontrack = this.onTrack(remoteSocketId)
-            rtcPeerConnection.onnegotiationneeded = this.onNegotiationNeeded(rtcPeerConnection, remoteSocketId)
-            rtcPeerConnection.onconnectionstatechange = this.onConnectionStateChange(rtcPeerConnection,remoteSocketId)
-
-            if (this.localStream) {
-                this.localStream.getTracks().forEach((track: MediaStreamTrack) => {
-                    rtcPeerConnection.addTrack(track)
-                })
-            }
-
-            if (!this.DCs.get(remoteSocketId)) {
-                this.createDataChannel(rtcPeerConnection, remoteSocketId)
-            }
-        }
-    }
-
     private onConnectionStateChange(rtcPeerConnection: RTCPeerConnection, sender: string) {
         return async () => {
             const connectionStatus = rtcPeerConnection.connectionState;
@@ -199,6 +268,7 @@ export class SignalService {
 
     private onTrack(remoteSocketId: string) {
         return async (e: RTCTrackEvent) => {
+            e.track.onended = this.onEnded(remoteSocketId)
             let remoteMediaStreamTracks = this.remoteMediaStreamTracksMap.get(remoteSocketId)
             if (remoteMediaStreamTracks && remoteMediaStreamTracks.length > 0) {
                 remoteMediaStreamTracks.push(e.track)
@@ -206,7 +276,6 @@ export class SignalService {
             } else {
                 this.remoteMediaStreamTracksMap.set(remoteSocketId, [e.track])
             }
-
             if (remoteMediaStreamTracks && remoteMediaStreamTracks.length >= 2) {
                 let mediaStream = new MediaStream()
                 for (let mediaStreamTrack of remoteMediaStreamTracks) {
@@ -214,9 +283,16 @@ export class SignalService {
                 }
                 this.remoteMediaStreamMap.set(remoteSocketId, mediaStream)
                 if (this.onMediaStream) {
-                    this.onMediaStream(this.remoteMediaStreamMap.get(remoteSocketId),remoteSocketId)
+                    this.onMediaStream(this.remoteMediaStreamMap.get(remoteSocketId), remoteSocketId)
                 }
             }
+        }
+    }
+
+    private onEnded(sender) {
+        return () => {
+            console.log("onEnded")
+            this.onDisconnected(sender)
         }
     }
 
@@ -248,9 +324,14 @@ export class SignalService {
 
     private onReceiveMessageCallback(socketId: string) {
         return (event: MessageEvent) => {
-            let data = event.data
-            if (this.peerListener) {
-                this.peerListener({ data, socketId })
+            let data = JSON.parse(event.data)
+            if (data.msg && this.peerListener) {
+                this.peerListener({ data: data.msg, socketId })
+            }
+            if (data.state && data.state === "closed") {
+                this.onDisconnected(data.sender)
+                this.remoteMediaStreamMap.delete(data.sender)
+                this.remoteMediaStreamTracksMap.delete(data.sender)
             }
         }
     }
@@ -311,26 +392,6 @@ export class SignalService {
         }
     }
 
-    public async answer(offer: RTCSessionDescription, to: string) {
-        let rtcPeerConnection = this.PCs.get(to)
-
-        if (rtcPeerConnection) {
-            await rtcPeerConnection.setRemoteDescription(offer)
-            await rtcPeerConnection.createAnswer()
-                .then(
-                    this.setAnswerDescription(to)
-                    , this.onCreateSessionDescriptionError())
-        }
-    }
-
-    public async addTracksToPCs() {
-        this.PCs.forEach((value: RTCPeerConnection) => {
-            this.localStream.getTracks().forEach((track: MediaStreamTrack) => {
-                value.addTrack(track)
-            })
-        })
-    }
-
     private onCreateSessionDescriptionError() {
         return (error: Error) => {
             console.log('Failed to create session description: ' + error.toString())
@@ -348,7 +409,6 @@ export class SignalService {
                     to: remoteSocketId
                 }
             })
-
             if (rtcPeerConnection) {
                 await rtcPeerConnection.setLocalDescription(desc)
             }
@@ -373,24 +433,6 @@ export class SignalService {
         }
     }
 
-    public async setOnDataChannel(sender: string) {
-        let peerConnection: RTCPeerConnection = this.PCs.get(sender)
-
-        if (peerConnection) {
-            peerConnection.ondatachannel = this.onDataChannel(sender)
-        }
-    }
-
-    public async setDescription(sdp: RTCSessionDescription, sender: string) {
-        let peerConnection: RTCPeerConnection = this.PCs.get(sender)
-
-        if (peerConnection) {
-            const rtcSessionDescription = new RTCSessionDescription(sdp)
-            await peerConnection.setRemoteDescription(rtcSessionDescription)
-            peerConnection.ondatachannel = this.onDataChannel(sender)
-        }
-    }
-
     private onAddIceCandidateSuccess() {
         return () => {
             console.log('AddIceCandidate success.')
@@ -402,19 +444,6 @@ export class SignalService {
             console.log(`Failed to add Ice Candidate: ${error.toString()}`)
         }
     }
-
-    public addIceCandidate(message: any) {
-        setTimeout(async () => {
-            let peerConnection = this.PCs.get(message.sender)
-            if (peerConnection) {
-                await peerConnection.addIceCandidate(message.candidate).then(
-                    this.onAddIceCandidateSuccess(),
-                    this.onAddIceCandidateError()
-                )
-            }
-        }, 250)
-    }
-
 
     async generatePCs(message: any) {
         this.token = message.token
