@@ -70,19 +70,24 @@ export class SignalService {
     * sendMessageOverWebRTC
     * @param msg string msg text
     */
-    sendMessageOverWebRTC(msg) {
-        this.DCs.forEach(value => {
-            if (value.readyState === 'open') {
-                value.send(JSON.stringify({ msg }));
-            }
-        });
-    }
-    sendInternalMessageOverWebSocket(data) {
+    sendMessageOverWebRTC(data) {
         this.DCs.forEach(value => {
             if (value.readyState === 'open') {
                 value.send(JSON.stringify(data));
             }
         });
+    }
+    toggleAudioEnabled() {
+        let audioTracks = this.localStream.getAudioTracks();
+        for (let audio of audioTracks) {
+            audio.enabled = !audio.enabled;
+        }
+    }
+    toggleVideoEnabled() {
+        let videoTracks = this.localStream.getVideoTracks();
+        for (let video of videoTracks) {
+            video.enabled = !video.enabled;
+        }
     }
     generatePC(remoteSocketId) {
         return __awaiter(this, void 0, void 0, function* () {
@@ -127,7 +132,7 @@ export class SignalService {
     }
     removeTracksFromPCs() {
         return __awaiter(this, void 0, void 0, function* () {
-            this.sendInternalMessageOverWebSocket({
+            this.sendMessageOverWebRTC({
                 state: "closed",
                 sender: this.connectionId
             });
@@ -250,7 +255,6 @@ export class SignalService {
     }
     onTrack(remoteSocketId) {
         return (e) => __awaiter(this, void 0, void 0, function* () {
-            console.log("asdsad");
             e.track.onended = this.onEnded(remoteSocketId);
             let remoteMediaStreamTracks = this.remoteMediaStreamTracksMap.get(remoteSocketId);
             if (remoteMediaStreamTracks && remoteMediaStreamTracks.length > 0) {

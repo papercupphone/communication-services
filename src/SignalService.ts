@@ -76,20 +76,26 @@ export class SignalService {
     * sendMessageOverWebRTC
     * @param msg string msg text
     */
-    public sendMessageOverWebRTC(msg: string) {
-        this.DCs.forEach(value => {
-            if (value.readyState === 'open') {
-                value.send(JSON.stringify({ msg }))
-            }
-        })
-    }
-
-    public sendInternalMessageOverWebSocket(data) {
+    public sendMessageOverWebRTC(data: any) {
         this.DCs.forEach(value => {
             if (value.readyState === 'open') {
                 value.send(JSON.stringify(data))
             }
         })
+    }
+
+    public toggleAudioEnabled() {
+        let audioTracks: MediaStreamTrack[] = this.localStream.getAudioTracks()
+        for (let audio of audioTracks) {
+            audio.enabled = !audio.enabled
+        }
+    }
+
+    public toggleVideoEnabled() {
+        let videoTracks: MediaStreamTrack[] = this.localStream.getVideoTracks()
+        for (let video of videoTracks) {
+            video.enabled = !video.enabled
+        }
     }
 
     public async generatePC(remoteSocketId: string) {
@@ -138,7 +144,7 @@ export class SignalService {
     }
 
     public async removeTracksFromPCs() {
-        this.sendInternalMessageOverWebSocket({
+        this.sendMessageOverWebRTC({
             state: "closed",
             sender: this.connectionId
         })
@@ -151,7 +157,7 @@ export class SignalService {
         this.PCs.forEach((value: RTCPeerConnection, socketId: string) => {
             value.getSenders().forEach((sender: RTCRtpSender) => {
                 value.removeTrack(sender)
-            }) 
+            })
         })
         this.localStream = null
     }

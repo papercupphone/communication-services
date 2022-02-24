@@ -45,8 +45,9 @@ export declare class SignalService {
     * sendMessageOverWebRTC
     * @param msg string msg text
     */
-    sendMessageOverWebRTC(msg: string): void;
-    sendInternalMessageOverWebSocket(data: any): void;
+    sendMessageOverWebRTC(data: any): void;
+    toggleAudioEnabled(): void;
+    toggleVideoEnabled(): void;
     generatePC(remoteSocketId: string): Promise<void>;
     answer(offer: RTCSessionDescription, to: string): Promise<void>;
     addTracksToPCs(): Promise<void>;
