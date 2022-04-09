@@ -36,7 +36,7 @@ export declare class SignalService {
      * sendMessageOverWebSocket
      * @param data
      */
-    sendMessageOverWebSocket(data: Data): Promise<void>;
+    sendMessageOverWebSocket(data: Data): void;
     /**
      * returns self socketId
      */
@@ -48,13 +48,13 @@ export declare class SignalService {
     sendMessageOverWebRTC(data: any): void;
     toggleAudioEnabled(): void;
     toggleVideoEnabled(): void;
-    generatePC(remoteSocketId: string): Promise<void>;
-    answer(offer: RTCSessionDescription, to: string): Promise<void>;
-    addTracksToPCs(): Promise<void>;
-    removeTracksFromPCs(): Promise<void>;
-    setDescription(sdp: RTCSessionDescription, sender: string): Promise<void>;
+    generatePC(remoteSocketId: string): void;
+    answer(offer: RTCSessionDescription, to: string): void;
+    addTracksToPCs(): void;
+    removeTracksFromPCs(): void;
+    setDescription(sdp: RTCSessionDescription, sender: string): void;
     addIceCandidate(message: any): void;
-    setOnDataChannel(sender: string): Promise<void>;
+    setOnDataChannel(sender: string): void;
     /**
      * It make us send joining request to room
      * @param room
@@ -90,5 +90,5 @@ export declare class SignalService {
     private setAnswerDescription;
     private onAddIceCandidateSuccess;
     private onAddIceCandidateError;
-    generatePCs(message: any): Promise<void>;
+    generatePCs(message: any): void;
 }
