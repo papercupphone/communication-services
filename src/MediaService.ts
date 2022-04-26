@@ -12,7 +12,7 @@ export class MediaService {
     }
   }
 
-  public static getMedia(constrains: Constraints) {
+  public static getMedia(constrains: Constraints): Promise<MediaStream> {
     return new Promise((resolve, reject) => {
       this.getMediator()
         .getUserMedia(constrains)
@@ -25,7 +25,7 @@ export class MediaService {
     });
   }
 
-  public static getDevices() {
+  public static getDevices(): Promise<Array<InputDeviceInfo | MediaDeviceInfo>> {
     return new Promise((resolve) => {
       this.getMediator()
         .enumerateDevices()
