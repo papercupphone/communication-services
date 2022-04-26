@@ -1,4 +1,4 @@
 interface Constraints {
-    audio: boolean,
-    video: boolean
+  audio: boolean;
+  video: boolean;
 }

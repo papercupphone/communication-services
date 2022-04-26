@@ -8,21 +8,26 @@ export class MediaService {
             return navigator;
         }
         else {
-            throw new Error("Something bad happened.");
+            throw new Error('Something bad happened.');
         }
     }
     static getMedia(constrains) {
         return new Promise((resolve, reject) => {
-            this.getMediator().getUserMedia(constrains).then(function (stream) {
+            this.getMediator()
+                .getUserMedia(constrains)
+                .then((stream) => {
                 resolve(stream);
-            }).catch(function (err) {
+            })
+                .catch((err) => {
                 reject(err);
             });
         });
     }
-    static getDevices(constrains) {
-        return new Promise((resolve, reject) => {
-            this.getMediator().enumerateDevices().then(function (devices) {
+    static getDevices() {
+        return new Promise((resolve) => {
+            this.getMediator()
+                .enumerateDevices()
+                .then((devices) => {
                 resolve(devices);
             });
         });

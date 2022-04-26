@@ -1,3 +1,3 @@
 interface Room {
-    name: string
+  name: string;
 }

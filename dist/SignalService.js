@@ -11,8 +11,8 @@ export class SignalService {
         this.RCs = new Map();
         this.remoteMediaStreamTracksMap = new Map();
         this.remoteMediaStreamMap = new Map();
-        this.connectionId = "";
-        this.apiUrl = "";
+        this.connectionId = '';
+        this.apiUrl = '';
         window.onbeforeunload = this.beforeUnload();
     }
     /**
@@ -56,11 +56,11 @@ export class SignalService {
         return this.connectionId;
     }
     /**
-    * sendMessageOverWebRTC
-    * @param msg string msg text
-    */
+     * sendMessageOverWebRTC
+     * @param msg string msg text
+     */
     sendMessageOverWebRTC(data) {
-        this.DCs.forEach(value => {
+        this.DCs.forEach((value) => {
             if (value.readyState === 'open') {
                 value.send(JSON.stringify(data));
             }
@@ -80,7 +80,7 @@ export class SignalService {
     }
     generatePC(remoteSocketId) {
         if (!this.PCs.get(remoteSocketId)) {
-            const configuration = { 'iceServers': this.token.iceServers };
+            const configuration = { iceServers: this.token.iceServers };
             let RTCPeerConnection = window.RTCPeerConnection;
             let rtcPeerConnection = new RTCPeerConnection(configuration);
             this.PCs.set(remoteSocketId, rtcPeerConnection);
@@ -102,8 +102,7 @@ export class SignalService {
         let rtcPeerConnection = this.PCs.get(to);
         if (rtcPeerConnection) {
             rtcPeerConnection.setRemoteDescription(offer).then(() => {
-                rtcPeerConnection.createAnswer()
-                    .then(this.setAnswerDescription(to), this.onCreateSessionDescriptionError());
+                rtcPeerConnection.createAnswer().then(this.setAnswerDescription(to), this.onCreateSessionDescriptionError());
             });
         }
     }
@@ -116,8 +115,8 @@ export class SignalService {
     }
     removeTracksFromPCs() {
         this.sendMessageOverWebRTC({
-            state: "closed",
-            sender: this.connectionId
+            state: 'closed',
+            sender: this.connectionId,
         });
         this.localStream.getVideoTracks().forEach((track) => {
             track.stop();
@@ -145,7 +144,9 @@ export class SignalService {
         setTimeout(() => {
             let peerConnection = this.PCs.get(message.sender);
             if (peerConnection) {
-                peerConnection.addIceCandidate(message.candidate).then(this.onAddIceCandidateSuccess(), this.onAddIceCandidateError());
+                peerConnection
+                    .addIceCandidate(message.candidate)
+                    .then(this.onAddIceCandidateSuccess(), this.onAddIceCandidateError());
             }
         }, 250);
     }
@@ -165,7 +166,7 @@ export class SignalService {
             if (this.socket) {
                 this.socket.onmessage = this.onMessage();
             }
-            this.sendMessageOverWebSocket({ action: "join", room: { name: room } });
+            this.sendMessageOverWebSocket({ action: 'join', room: { name: room } });
         };
     }
     /**
@@ -193,7 +194,7 @@ export class SignalService {
                 console.log(event.data);
             }
             if (message && message.joined) {
-                console.log("User joined room with id " + message.joined.id);
+                console.log('User joined room with id ' + message.joined.id);
             }
             if (message && message.me) {
                 this.connectionId = message.me.id;
@@ -221,13 +222,13 @@ export class SignalService {
      */
     beforeUnload() {
         return () => {
-            navigator.sendBeacon(this.apiUrl + "/leave", JSON.stringify({ connectionId: this.connectionId }));
+            navigator.sendBeacon(this.apiUrl + '/leave', JSON.stringify({ connectionId: this.connectionId }));
         };
     }
     onConnectionStateChange(rtcPeerConnection, sender) {
         return () => {
             const connectionStatus = rtcPeerConnection.connectionState;
-            if (["disconnected", "failed", "closed"].includes(connectionStatus)) {
+            if (['disconnected', 'failed', 'closed'].includes(connectionStatus)) {
                 this.onDisconnected(sender);
             }
         };
@@ -257,7 +258,7 @@ export class SignalService {
     }
     onEnded(sender) {
         return () => {
-            console.log("onEnded");
+            console.log('onEnded');
             this.onDisconnected(sender);
         };
     }
@@ -269,7 +270,7 @@ export class SignalService {
     }
     onNegotiationNeeded(rtcPeerConnection, remoteSocketId) {
         return () => {
-            console.log("negotiationNeeded");
+            console.log('negotiationNeeded');
             this.offer(rtcPeerConnection, remoteSocketId);
         };
     }
@@ -290,7 +291,7 @@ export class SignalService {
             if (data.msg && this.peerListener) {
                 this.peerListener({ data: data.msg, socketId });
             }
-            if (data.state && data.state === "closed") {
+            if (data.state && data.state === 'closed') {
                 this.onDisconnected(data.sender);
                 this.remoteMediaStreamMap.delete(data.sender);
                 this.remoteMediaStreamTracksMap.delete(data.sender);
@@ -331,17 +332,20 @@ export class SignalService {
     onIceCandidate(to) {
         return (rtcIceCandidate) => {
             this.sendMessageOverWebSocket({
-                action: "message", message: {
+                action: 'message',
+                message: {
                     candidate: rtcIceCandidate.candidate,
-                    to
-                }
+                    to,
+                },
             });
         };
     }
     offer(rtcPeerConnection, to) {
         if (rtcPeerConnection) {
-            rtcPeerConnection.createOffer()
-                .then(this.setOfferDescription(rtcPeerConnection, to), this.onCreateSessionDescriptionError()).catch((reason) => {
+            rtcPeerConnection
+                .createOffer()
+                .then(this.setOfferDescription(rtcPeerConnection, to), this.onCreateSessionDescriptionError())
+                .catch((reason) => {
                 console.log(reason);
             });
         }
@@ -354,13 +358,14 @@ export class SignalService {
     setOfferDescription(rtcPeerConnection, remoteSocketId) {
         return (desc) => {
             this.sendMessageOverWebSocket({
-                action: "message", message: {
+                action: 'message',
+                message: {
                     offer: {
                         type: desc.type,
-                        sdp: desc.sdp
+                        sdp: desc.sdp,
                     },
-                    to: remoteSocketId
-                }
+                    to: remoteSocketId,
+                },
             });
             if (rtcPeerConnection) {
                 rtcPeerConnection.setLocalDescription(desc);
@@ -370,13 +375,14 @@ export class SignalService {
     setAnswerDescription(to) {
         return (desc) => {
             this.sendMessageOverWebSocket({
-                action: "message", message: {
+                action: 'message',
+                message: {
                     answer: {
                         type: desc.type,
-                        sdp: desc.sdp
+                        sdp: desc.sdp,
                     },
-                    to
-                }
+                    to,
+                },
             });
             let peerConnection = this.PCs.get(to);
             if (peerConnection) {

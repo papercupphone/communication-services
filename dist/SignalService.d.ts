@@ -1,4 +1,4 @@
-import { Data } from "./model/Data";
+import { Data } from './model/Data';
 export declare class SignalService {
     private socket?;
     private localStream;
@@ -42,9 +42,9 @@ export declare class SignalService {
      */
     getConnectionId(): string;
     /**
-    * sendMessageOverWebRTC
-    * @param msg string msg text
-    */
+     * sendMessageOverWebRTC
+     * @param msg string msg text
+     */
     sendMessageOverWebRTC(data: any): void;
     toggleAudioEnabled(): void;
     toggleVideoEnabled(): void;

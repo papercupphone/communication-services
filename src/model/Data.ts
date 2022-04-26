@@ -1,5 +1,5 @@
 export interface Data {
-    action: string
-    message?: Message
-    room?: Room
+  action: string;
+  message?: Message;
+  room?: Room;
 }

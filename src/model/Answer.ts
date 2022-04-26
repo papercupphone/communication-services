@@ -1,4 +1,4 @@
 interface Offer {
-    type: RTCSdpType,
-    sdp: string | RTCSessionDescription
+  type: RTCSdpType;
+  sdp: string | RTCSessionDescription;
 }
